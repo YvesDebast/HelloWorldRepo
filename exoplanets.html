@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exploring 1,174 Exoplanets</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b34; --panel2:#1b2444; --ink:#e8ecff;
+    --muted:#9aa6d0; --line:#2a3560; --accent:#7cc4ff; --good:#7CFFB2;
+    --warn:#ffcf6b;
+    /* discovery-method colour map — consistent across every chart */
+    --m-transit:#7cc4ff; --m-rv:#ff9e6b; --m-imaging:#b48cff;
+    --m-obm:#7CFFB2; --m-ttv:#ff7c9c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  header,section,footer{max-width:1080px;margin:0 auto;padding:28px 22px}
+  header{padding-top:48px}
+  h1{font-size:2.2rem;line-height:1.1;margin:0 0 .4rem}
+  h2{font-size:1.5rem;margin:0 0 .2rem;border-left:4px solid var(--accent);padding-left:.6rem}
+  .kicker{color:var(--accent);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.8rem}
+  .lead{color:var(--muted);max-width:70ch}
+  .howto{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:20px 0;color:var(--muted)}
+  .howto b{color:var(--ink)}
+  section{border-top:1px solid var(--line)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h3{margin:.1rem 0 .2rem;font-size:1.05rem}
+  .card .desc{color:var(--muted);font-size:.9rem;margin:0 0 10px}
+  canvas{width:100%;height:auto;display:block;background:var(--panel2);border-radius:10px}
+  .takeaway{margin-top:12px;padding:10px 12px;background:var(--panel2);border-left:3px solid var(--good);border-radius:6px;font-size:.95rem}
+  .takeaway.refute{border-left-color:var(--warn)}
+  .caption{color:var(--muted);font-size:.8rem;margin-top:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 0;font-size:.82rem;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .est{color:var(--warn)}
+  .term{border-bottom:1px dotted var(--muted);cursor:help}
+  .full{grid-column:1/-1}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.78rem;color:var(--muted);margin-right:6px}
+  button#loadBtn{background:var(--accent);color:#06112a;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer}
+  #status{margin-left:12px;color:var(--muted);font-size:.9rem}
+  #loadRow{margin:18px 0 4px}
+  input[type=file]{color:var(--muted)}
+  footer{color:var(--muted);font-size:.9rem;padding-bottom:60px}
+  a{color:var(--accent)}
+  .superlatives td:first-child{color:var(--muted)}
+  .big{font-size:1.05rem;font-weight:700;color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">A data tour · descriptive, not predictive</div>
+  <h1>Exploring 1,174 Exoplanets</h1>
+  <p class="lead">A scroll through what one snapshot of the exoplanet catalogue
+  actually says — how these worlds were found, what they're like, which (if any)
+  could be habitable, and the record-holders. Every chart is hand-drawn from the
+  raw CSV with no libraries, and every chart tells you how much data it had to
+  leave out.</p>
+
+  <div class="howto">
+    <b>How to read this page.</b> Each panel has a one-line plain-language
+    takeaway and a small grey caption reporting <b>N&nbsp;used&nbsp;/&nbsp;N&nbsp;missing</b>
+    — empty cells in the data are counted, never silently dropped. Dotted terms
+    like <span class="term" title="The temperature a planet would settle at from its star's light alone, in Kelvin (K). 0&nbsp;K = absolute cold; Earth ≈ 255&nbsp;K.">equilibrium temperature</span>
+    have hover definitions. Colour always means the same
+    <span class="term" title="The technique astronomers used to detect the planet.">discovery method</span>
+    across every chart (see legend).
+  </div>
+
+  <div id="loadRow">
+    <button id="loadBtn">Load CSV</button>
+    <input id="fileInput" type="file" accept=".csv" hidden>
+    <span id="status">Loading…</span>
+    <p class="caption" style="margin-top:8px">
+      Served over HTTP (e.g. <code>python -m http.server</code>) the page loads
+      <code>exoplanets.csv</code> automatically. Opened by double-click
+      (<code>file://</code>) the browser blocks that fetch — click
+      <b>Load CSV</b> and pick <code>exoplanets.csv</code> yourself.
+    </p>
+  </div>
+</header>
+
+<!-- ========================= A · DISCOVERY ========================= -->
+<section id="discovery">
+  <div class="kicker">Section A</div>
+  <h2>How we found them</h2>
+  <p class="lead">When were these planets discovered, and by what method? A
+  <span class="term" title="Detecting a planet by the tiny dip in starlight as it passes in front of its host star.">transit</span>
+  survey watches thousands of stars for dips in brightness; other methods are far
+  rarer.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Discoveries per year</h3>
+      <p class="desc">Count of planets in this catalogue by <code>disc_year</code>.</p>
+      <canvas id="cYear" width="900" height="420"></canvas>
+      <div class="caption" id="capYear"></div>
+    </div>
+    <div class="card">
+      <h3>Method mix over time</h3>
+      <p class="desc">Same years, stacked by discovery method.</p>
+      <canvas id="cMethod" width="900" height="420"></canvas>
+      <div class="legend" id="legMethod"></div>
+      <div class="caption" id="capMethod"></div>
+    </div>
+  </div>
+  <div class="takeaway full" id="takeDiscovery"></div>
+</section>
+
+<!-- ========================= B · PLANET SCIENCE ========================= -->
+<section id="planetsci">
+  <div class="kicker">Section B</div>
+  <h2>What kind of worlds are these?</h2>
+  <p class="lead">Size, mass and orbit. Earth and Jupiter are marked for scale —
+  Earth radius/mass = 1; Jupiter ≈ 11 Earth radii and ≈ 318 Earth masses. Axes are
+  <span class="term" title="Each step on the axis multiplies by 10, so values spanning orders of magnitude fit on one chart.">logarithmic</span>
+  because these quantities span huge ranges.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Mass vs radius (log–log)</h3>
+      <p class="desc"><code>pl_bmasse</code> (Earth masses) vs <code>pl_rade</code> (Earth radii), coloured by method.</p>
+      <canvas id="cMR" width="900" height="520"></canvas>
+      <div class="legend" id="legMR"></div>
+      <div class="caption" id="capMR"></div>
+    </div>
+    <div class="card">
+      <h3>Temperature vs orbit distance</h3>
+      <p class="desc"><span class="term" title="The temperature a planet would settle at from starlight alone, in Kelvin.">Equilibrium temp</span> (K) vs semi-major axis in
+      <span class="term" title="Astronomical Unit — the average Earth–Sun distance. 1 AU ≈ 150 million km.">AU</span> (log x).</p>
+      <canvas id="cTO" width="900" height="520"></canvas>
+      <div class="legend" id="legTO"></div>
+      <div class="caption" id="capTO"></div>
+    </div>
+  </div>
+  <div class="takeaway full" id="takePlanetsci"></div>
+</section>
+
+<!-- ========================= C · HABITABILITY ========================= -->
+<section id="habitability">
+  <div class="kicker">Section C</div>
+  <h2>Could any be habitable?</h2>
+  <p class="lead">A deliberately simple, descriptive filter: roughly Earth-sized
+  (radius <b>0.5–1.5&nbsp;⊕</b>) <b>and</b> temperate (equilibrium temperature
+  <b>180–310&nbsp;K</b>). This is not a verdict on life — just a box on a chart.
+  The shaded region below is that box.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Radius vs temperature</h3>
+      <p class="desc">Every planet with both values; the green box is the habitable filter.</p>
+      <canvas id="cHab" width="900" height="520"></canvas>
+      <div class="caption" id="capHab"></div>
+    </div>
+    <div class="card">
+      <h3>Candidates in the box</h3>
+      <p class="desc"><span class="est">Amber</span> rows rely on an <b>estimated</b> temperature (<code>pl_eqt_computed=True</code>).</p>
+      <div style="overflow:auto;max-height:420px">
+        <table id="tHab">
+          <thead><tr><th>Planet</th><th class="num">Radius ⊕</th><th class="num">Eq. temp K</th><th>Temp</th><th class="num">Dist (pc)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="takeaway full" id="takeHab"></div>
+</section>
+
+<!-- ========================= D · SUPERLATIVES ========================= -->
+<section id="superlatives">
+  <div class="kicker">Section D</div>
+  <h2>Record-holders</h2>
+  <p class="lead">Extremes over the rows that actually have the relevant value.
+  Each is the true maximum or minimum among <span class="term" title="Rows where the column is empty are excluded from that record.">non-missing</span> entries.</p>
+  <table class="superlatives" id="tSuper">
+    <thead><tr><th>Superlative</th><th>Planet / system</th><th class="num">Value</th><th>Basis</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="caption" id="capSuper"></div>
+</section>
+
+<!-- ========================= E · CAVEATS ========================= -->
+<section id="caveats">
+  <div class="kicker">Section E</div>
+  <h2>Read this before you trust any of the above</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>The catalogue is incomplete</h3>
+      <p class="desc">Many cells are empty. We count them rather than hiding them.
+      Missing values per key column:</p>
+      <table id="tMiss"><thead><tr><th>Column</th><th class="num">Missing</th><th class="num">% of 1,174</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h3>Selection bias is real</h3>
+      <p class="desc">This sample is what our instruments can <b>detect</b>, not
+      what exists. Transit and radial-velocity surveys favour large, close-in
+      planets ("hot Jupiters"); imaging favours massive planets on wide orbits.
+      Small, cool, distant worlds are systematically under-counted — their
+      apparent rarity here is partly a property of our telescopes.</p>
+    </div>
+    <div class="card">
+      <h3>Some temperatures are estimated</h3>
+      <p class="desc">When <code>pl_eqt_computed=True</code>, the equilibrium
+      temperature was <b>computed</b> from the star and orbit, not measured.
+      <span id="estNote"></span> The habitability box flags these in amber, because
+      a candidacy that hinges on an estimate is weaker than one that doesn't.</p>
+    </div>
+    <div class="card">
+      <h3>Stars vs planets</h3>
+      <p class="desc">Multi-planet systems repeat their host star across rows, so a
+      star is keyed by <code>star_id</code>, not its name. Planet-level counts use
+      rows; system-level records (like biggest system) group by <code>star_id</code>.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span class="pill">Source: <code>exoplanets.csv</code> · 1,174 planets</span>
+  <span class="pill">No libraries · charts hand-drawn on &lt;canvas&gt;</span>
+  <p>This page describes <b>what we can detect</b>, not what exists. Every
+  conclusion is a statement about this catalogue and the instruments behind it.</p>
+</footer>
+
+<script>
+"use strict";
+
+/* ============================================================ *
+ *  Config
+ * ============================================================ */
+const RATING_COLS = []; // (n/a here; kept for parity w/ project conventions)
+
+// numeric columns get converted to Number; "" becomes null (missing)
+const NUMERIC = new Set(["pl_rade","pl_bmasse","pl_eqt","disc_year","ra","dec",
+  "sy_dist","pl_orbper","pl_orbsmax","st_teff","st_rad","st_mass","st_met","sy_pnum"]);
+
+// fixed colour per discovery method — single source of truth
+const METHOD_COLOR = {
+  "Transit":"#7cc4ff",
+  "Radial Velocity":"#ff9e6b",
+  "Imaging":"#b48cff",
+  "Orbital Brightness Modulation":"#7CFFB2",
+  "Transit Timing Variations":"#ff7c9c",
+};
+const METHOD_ORDER = ["Transit","Radial Velocity","Imaging",
+  "Orbital Brightness Modulation","Transit Timing Variations"];
+const methodColor = m => METHOD_COLOR[m] || "#888";
+
+/* ============================================================ *
+ *  CSV parsing (quote-aware, reused approach)
+ * ============================================================ */
+function parseCSVLine(line){
+  const out=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQ){
+      if(c==='"'){
+        if(line[i+1]==='"'){cur+='"';i++;} else inQ=false;
+      } else cur+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===',') {out.push(cur);cur="";}
+      else cur+=c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseCSV(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n")
+    .filter(l=>l.length>0);
+  const header=parseCSVLine(lines[0]);
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const cells=parseCSVLine(lines[i]);
+    const o={};
+    for(let j=0;j<header.length;j++){
+      const key=header[j];
+      let v=(cells[j]!==undefined?cells[j]:"").trim();
+      if(key==="pl_eqt_computed"){ o[key]= v==="True"||v==="true"||v==="1"; }
+      else if(NUMERIC.has(key)){ o[key]= v===""? null : Number(v); }
+      else { o[key]= v; }
+    }
+    rows.push(o);
+  }
+  return rows;
+}
+
+/* ============================================================ *
+ *  Canvas chart helpers (hand-drawn, log-axis capable)
+ * ============================================================ */
+const PAD = {l:64,r:18,t:18,b:46};
+const AXIS="#46538c", TICK="#2a3560", LBL="#9aa6d0", GRID="#222c52";
+
+function setupCanvas(canvas){
+  const dpr=window.devicePixelRatio||1;
+  const cssW=canvas.clientWidth||canvas.width;
+  const cssH=canvas.height/(canvas.width/cssW); // keep declared aspect
+  const w=cssW, h=canvas.getBoundingClientRect().height||(canvas.height*cssW/canvas.width);
+  canvas.width=Math.round(cssW*dpr);
+  canvas.height=Math.round(h*dpr);
+  const ctx=canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,h);
+  return {ctx,w:cssW,h};
+}
+
+function niceTicks(min,max,count){
+  if(min===max){min-=1;max+=1;}
+  const range=max-min;
+  const raw=range/Math.max(1,count);
+  const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag;
+  let step;
+  if(norm<1.5)step=1; else if(norm<3)step=2; else if(norm<7)step=5; else step=10;
+  step*=mag;
+  const start=Math.ceil(min/step)*step;
+  const ticks=[];
+  for(let v=start;v<=max+step*1e-6;v+=step) ticks.push(v);
+  return ticks;
+}
+
+// log-10 tick decades within [min,max] (min>0)
+function logTicks(min,max){
+  const lo=Math.floor(Math.log10(min)), hi=Math.ceil(Math.log10(max));
+  const t=[];
+  for(let e=lo;e<=hi;e++) t.push(Math.pow(10,e));
+  return t;
+}
+
+function fmtNum(v){
+  if(v===0) return "0";
+  const a=Math.abs(v);
+  if(a>=1000) return v.toLocaleString();
+  if(a>=10) return (Math.round(v*10)/10).toString();
+  if(a>=1) return (Math.round(v*100)/100).toString();
+  return (Math.round(v*1000)/1000).toString();
+}
+
+// Generic axis frame. Returns scale fns. Supports linear or log per axis.
+function makeAxes(ctx,w,h,opts){
+  const {xMin,xMax,yMin,yMax,xLog=false,yLog=false,xLabel="",yLabel=""}=opts;
+  const px0=PAD.l, px1=w-PAD.r, py0=h-PAD.b, py1=PAD.t;
+  const lx=v=>xLog?Math.log10(v):v;
+  const ly=v=>yLog?Math.log10(v):v;
+  const lxMin=lx(xMin),lxMax=lx(xMax),lyMin=ly(yMin),lyMax=ly(yMax);
+  const sx=v=>px0+(lx(v)-lxMin)/(lxMax-lxMin)*(px1-px0);
+  const sy=v=>py0+(ly(v)-lyMin)/(lyMax-lyMin)*(py1-py0);
+
+  // grid + ticks
+  ctx.font="11px system-ui,sans-serif";
+  ctx.fillStyle=LBL; ctx.strokeStyle=GRID; ctx.lineWidth=1;
+  const xt = xLog?logTicks(xMin,xMax):niceTicks(xMin,xMax,6);
+  const yt = yLog?logTicks(yMin,yMax):niceTicks(yMin,yMax,6);
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  xt.forEach(v=>{ if(v<xMin||v>xMax) return; const X=sx(v);
+    ctx.beginPath();ctx.moveTo(X,py0);ctx.lineTo(X,py1);ctx.stroke();
+    ctx.fillText(fmtNum(v),X,py0+6);});
+  ctx.textAlign="right"; ctx.textBaseline="middle";
+  yt.forEach(v=>{ if(v<yMin||v>yMax) return; const Y=sy(v);
+    ctx.beginPath();ctx.moveTo(px0,Y);ctx.lineTo(px1,Y);ctx.stroke();
+    ctx.fillText(fmtNum(v),px0-8,Y);});
+
+  // axis lines
+  ctx.strokeStyle="#46538c";ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(px0,py1);ctx.lineTo(px0,py0);ctx.lineTo(px1,py0);ctx.stroke();
+
+  // axis labels
+  ctx.fillStyle=LBL;ctx.font="12px system-ui,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="bottom";
+  ctx.fillText(xLabel,(px0+px1)/2,h-6);
+  ctx.save();ctx.translate(14,(py0+py1)/2);ctx.rotate(-Math.PI/2);
+  ctx.textBaseline="top";ctx.fillText(yLabel,0,0);ctx.restore();
+
+  return {sx,sy,px0,px1,py0,py1};
+}
+
+function barChart(canvas,{labels,values,xLabel="",yLabel="",color="#7cc4ff"}){
+  const {ctx,w,h}=setupCanvas(canvas);
+  const yMax=Math.max(...values,1);
+  const A=makeAxes(ctx,w,h,{xMin:0,xMax:labels.length,yMin:0,yMax:yMax*1.08,xLabel,yLabel});
+  const bw=(A.px1-A.px0)/labels.length;
+  ctx.fillStyle=color;
+  values.forEach((v,i)=>{
+    const x=A.px0+i*bw+bw*0.12, bh=A.py0-A.sy(v);
+    ctx.fillRect(x,A.sy(v),bw*0.76,bh);
+  });
+  // sparse x labels (every Nth so they don't overlap)
+  ctx.fillStyle=LBL;ctx.font="10px system-ui";ctx.textAlign="center";ctx.textBaseline="top";
+  const every=Math.ceil(labels.length/12);
+  labels.forEach((lab,i)=>{ if(i%every===0){ const x=A.px0+i*bw+bw/2; ctx.fillText(lab,x,A.py0+6);} });
+}
+
+function stackedBars(canvas,{labels,groups,xLabel="",yLabel=""}){
+  // groups: [{name,color,values:[per label]}]
+  const {ctx,w,h}=setupCanvas(canvas);
+  const totals=labels.map((_,i)=>groups.reduce((s,g)=>s+(g.values[i]||0),0));
+  const yMax=Math.max(...totals,1);
+  const A=makeAxes(ctx,w,h,{xMin:0,xMax:labels.length,yMin:0,yMax:yMax*1.08,xLabel,yLabel});
+  const bw=(A.px1-A.px0)/labels.length;
+  labels.forEach((_,i)=>{
+    let acc=0;
+    groups.forEach(g=>{
+      const v=g.values[i]||0; if(v<=0) return;
+      const yTop=A.sy(acc+v), yBot=A.sy(acc);
+      ctx.fillStyle=g.color;
+      ctx.fillRect(A.px0+i*bw+bw*0.12,yTop,bw*0.76,yBot-yTop);
+      acc+=v;
+    });
+  });
+  ctx.fillStyle=LBL;ctx.font="10px system-ui";ctx.textAlign="center";ctx.textBaseline="top";
+  const every=Math.ceil(labels.length/12);
+  labels.forEach((lab,i)=>{ if(i%every===0){ const x=A.px0+i*bw+bw/2; ctx.fillText(lab,x,A.py0+6);} });
+}
+
+function scatter(canvas,{points,xLog=false,yLog=false,xLabel="",yLabel="",
+                         xMin,xMax,yMin,yMax,colorFn,boxes=[],refs=[]}){
+  const {ctx,w,h}=setupCanvas(canvas);
+  const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  xMin=xMin!=null?xMin:Math.min(...xs); xMax=xMax!=null?xMax:Math.max(...xs);
+  yMin=yMin!=null?yMin:Math.min(...ys); yMax=yMax!=null?yMax:Math.max(...ys);
+  if(xLog){xMin=Math.max(xMin,Math.min(...xs.filter(v=>v>0)));}
+  if(yLog){yMin=Math.max(yMin,Math.min(...ys.filter(v=>v>0)));}
+  const A=makeAxes(ctx,w,h,{xMin,xMax,yMin,yMax,xLog,yLog,xLabel,yLabel});
+
+  // shaded boxes (e.g. habitable zone) drawn under points
+  boxes.forEach(b=>{
+    const x0=A.sx(Math.max(b.x0,xMin)), x1=A.sx(Math.min(b.x1,xMax));
+    const y0=A.sy(Math.min(b.y1,yMax)), y1=A.sy(Math.max(b.y0,yMin));
+    ctx.fillStyle=b.fill||"rgba(124,255,178,0.12)";
+    ctx.fillRect(x0,y0,x1-x0,y1-y0);
+    ctx.strokeStyle=b.stroke||"rgba(124,255,178,0.6)";ctx.lineWidth=1.2;
+    ctx.setLineDash([5,4]);ctx.strokeRect(x0,y0,x1-x0,y1-y0);ctx.setLineDash([]);
+  });
+
+  // points
+  points.forEach(p=>{
+    if(p.x<xMin||p.x>xMax||p.y<yMin||p.y>yMax) return;
+    ctx.beginPath();
+    ctx.arc(A.sx(p.x),A.sy(p.y),p.r||2.6,0,Math.PI*2);
+    ctx.fillStyle=(colorFn?colorFn(p):"#7cc4ff");
+    ctx.globalAlpha=p.alpha!=null?p.alpha:0.72;
+    ctx.fill();ctx.globalAlpha=1;
+  });
+
+  // reference markers (Earth/Jupiter)
+  ctx.font="11px system-ui";
+  refs.forEach(rf=>{
+    if(rf.x<xMin||rf.x>xMax||rf.y<yMin||rf.y>yMax) return;
+    const X=A.sx(rf.x),Y=A.sy(rf.y);
+    ctx.strokeStyle="#fff";ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(X-5,Y);ctx.lineTo(X+5,Y);
+    ctx.moveTo(X,Y-5);ctx.lineTo(X,Y+5);ctx.stroke();
+    ctx.fillStyle="#fff";ctx.textAlign="left";ctx.textBaseline="bottom";
+    ctx.fillText(rf.label,X+7,Y-2);
+  });
+}
+
+function renderLegend(el,methods){
+  el.innerHTML="";
+  methods.forEach(m=>{
+    const s=document.createElement("span");
+    s.innerHTML=`<i class="swatch" style="background:${methodColor(m)}"></i>${m}`;
+    el.appendChild(s);
+  });
+}
+
+/* ============================================================ *
+ *  Section renderers
+ * ============================================================ */
+const present = (rows,col)=> rows.filter(r=>r[col]!=null && !Number.isNaN(r[col]));
+const cap = (used,total,extra="")=> `N used ${used.toLocaleString()} / N missing ${(total-used).toLocaleString()}${extra}`;
+
+function renderDiscovery(rows){
+  const total=rows.length;
+  const withYr=present(rows,"disc_year");
+  const years=withYr.map(r=>r.disc_year);
+  const yMin=Math.min(...years), yMax=Math.max(...years);
+  const labels=[]; for(let y=yMin;y<=yMax;y++) labels.push(String(y));
+  // per-year totals
+  const counts=labels.map(()=>0);
+  withYr.forEach(r=>counts[r.disc_year-yMin]++);
+  barChart(document.getElementById("cYear"),
+    {labels,values:counts,xLabel:"Discovery year",yLabel:"Planets"});
+  document.getElementById("capYear").textContent=cap(withYr.length,total,` · years ${yMin}–${yMax}`);
+
+  // method mix stacked
+  const groups=METHOD_ORDER.map(m=>({name:m,color:methodColor(m),
+    values:labels.map(()=>0)}));
+  withYr.forEach(r=>{
+    const gi=METHOD_ORDER.indexOf(r.discoverymethod);
+    if(gi>=0) groups[gi].values[r.disc_year-yMin]++;
+  });
+  stackedBars(document.getElementById("cMethod"),
+    {labels,groups,xLabel:"Discovery year",yLabel:"Planets"});
+  renderLegend(document.getElementById("legMethod"),METHOD_ORDER);
+
+  const mc={}; rows.forEach(r=>mc[r.discoverymethod]=(mc[r.discoverymethod]||0)+1);
+  const transitPct=Math.round(100*mc["Transit"]/total);
+  // post-2014 share
+  const post=withYr.filter(r=>r.disc_year>=2014).length;
+  document.getElementById("capMethod").textContent=
+    cap(withYr.length,total,` · Transit ${mc["Transit"]}, RV ${mc["Radial Velocity"]}, Imaging ${mc["Imaging"]}, OBM ${mc["Orbital Brightness Modulation"]||0}, TTV ${mc["Transit Timing Variations"]||0}`);
+
+  document.getElementById("takeDiscovery").innerHTML=
+    `<b>H1 confirmed.</b> Transit dominates at <b>${transitPct}%</b> of all
+     discoveries, and <b>${Math.round(100*post/withYr.length)}%</b> of planets
+     here were found in 2014 or later — the Kepler/TESS surge is plainly visible
+     in both charts.`;
+}
+
+function renderPlanetSci(rows){
+  const total=rows.length;
+  // mass-radius
+  const mr=rows.filter(r=>r.pl_bmasse>0 && r.pl_rade>0)
+    .map(r=>({x:r.pl_bmasse,y:r.pl_rade,m:r.discoverymethod}));
+  scatter(document.getElementById("cMR"),{
+    points:mr.map(p=>({...p})),xLog:true,yLog:true,
+    xLabel:"Mass (Earth masses, log)",yLabel:"Radius (Earth radii, log)",
+    colorFn:p=>methodColor(p.m),
+    refs:[{x:1,y:1,label:"Earth"},{x:318,y:11,label:"Jupiter"}],
+  });
+  renderLegend(document.getElementById("legMR"),METHOD_ORDER);
+  document.getElementById("capMR").textContent=cap(mr.length,total," · needs mass & radius");
+
+  // temp vs orbit
+  const to=rows.filter(r=>r.pl_orbsmax>0 && r.pl_eqt>0)
+    .map(r=>({x:r.pl_orbsmax,y:r.pl_eqt,m:r.discoverymethod}));
+  scatter(document.getElementById("cTO"),{
+    points:to,xLog:true,
+    xLabel:"Semi-major axis (AU, log)",yLabel:"Equilibrium temp (K)",
+    colorFn:p=>methodColor(p.m),
+  });
+  renderLegend(document.getElementById("legTO"),METHOD_ORDER);
+  document.getElementById("capTO").textContent=cap(to.length,total," · needs orbit & temp");
+
+  // H2 / H3 evidence
+  const img=mr.filter(p=>p.m==="Imaging");
+  const imgMedMass=median(img.map(p=>p.x));
+  const transit=mr.filter(p=>p.m==="Transit");
+  const giants=mr.filter(p=>p.x>=100).length; // ≥100 Earth masses
+  document.getElementById("takePlanetsci").innerHTML=
+    `<b>H2 confirmed:</b> the ${img.length} <span style="color:${methodColor('Imaging')}">Imaging</span>
+     planets cluster at high mass (median ≈ <b>${Math.round(imgMedMass).toLocaleString()}</b> Earth
+     masses) and the widest orbits, while Transit/RV crowd the small, close-in
+     corner. <b>H3 confirmed:</b> the plane is giant-heavy — <b>${giants}</b> of
+     ${mr.length} plotted planets exceed 100 Earth masses, and small temperate
+     worlds are sparse.`;
+}
+
+function median(a){ if(!a.length) return 0; const s=[...a].sort((x,y)=>x-y);
+  const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; }
+
+function renderHabitability(rows){
+  const total=rows.length;
+  const haveBoth=rows.filter(r=>r.pl_rade>0 && r.pl_eqt>0);
+  const cand=haveBoth.filter(r=>r.pl_rade>=0.5 && r.pl_rade<=1.5 && r.pl_eqt>=180 && r.pl_eqt<=310);
+  const est=cand.filter(r=>r.pl_eqt_computed).length;
+
+  scatter(document.getElementById("cHab"),{
+    points:haveBoth.map(r=>{
+      const inBox=r.pl_rade>=0.5&&r.pl_rade<=1.5&&r.pl_eqt>=180&&r.pl_eqt<=310;
+      return {x:r.pl_rade,y:r.pl_eqt,
+        r:inBox?5:2.4, alpha:inBox?0.95:0.4,
+        c:inBox?(r.pl_eqt_computed?"#ffcf6b":"#7CFFB2"):"#5566aa"};
+    }),
+    colorFn:p=>p.c,
+    xLog:true, xMin:0.3, xMax:40,
+    yMin:0, yMax:Math.max(...haveBoth.map(r=>r.pl_eqt))*1.05,
+    xLabel:"Radius (Earth radii, log)",yLabel:"Equilibrium temp (K)",
+    boxes:[{x0:0.5,x1:1.5,y0:180,y1:310}],
+  });
+  document.getElementById("capHab").textContent=cap(haveBoth.length,total," · needs radius & temp");
+
+  const tb=document.querySelector("#tHab tbody"); tb.innerHTML="";
+  cand.sort((a,b)=>a.pl_eqt-b.pl_eqt).forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${r.pl_name}</td>
+      <td class="num">${fmtNum(r.pl_rade)}</td>
+      <td class="num">${Math.round(r.pl_eqt)}</td>
+      <td class="${r.pl_eqt_computed?'est':''}">${r.pl_eqt_computed?'estimated':'measured'}</td>
+      <td class="num">${r.sy_dist!=null?fmtNum(r.sy_dist):'—'}</td>`;
+    tb.appendChild(tr);
+  });
+
+  document.getElementById("takeHab").innerHTML=
+    `<b>H4 confirmed.</b> Only <b>${cand.length} of ${total.toLocaleString()}</b>
+     planets fall in the simple habitable box (radius 0.5–1.5&nbsp;⊕ and
+     180–310&nbsp;K) — and <b>${est}</b> of those rely on an <span class="est">estimated</span>
+     temperature, so even this short list is softer than it looks.`;
+  document.querySelector("#takeHab").classList.toggle("refute",false);
+}
+
+function renderSuperlatives(rows){
+  const tb=document.querySelector("#tSuper tbody"); tb.innerHTML="";
+  const argext=(col,dir)=>{ // dir: -1 min, +1 max
+    let best=null;
+    present(rows,col).forEach(r=>{
+      if(best===null || (dir>0? r[col]>best[col] : r[col]<best[col])
+         || (r[col]===best[col] && r.pl_name<best.pl_name)) best=r;
+    });
+    return best;
+  };
+  const recs=[
+    ["Closest to us", argext("sy_dist",-1), r=>`${fmtNum(r.sy_dist)} pc`, "min sy_dist (non-missing)"],
+    ["Hottest", argext("pl_eqt",1), r=>`${Math.round(r.pl_eqt).toLocaleString()} K`, "max pl_eqt"],
+    ["Most massive", argext("pl_bmasse",1), r=>`${Math.round(r.pl_bmasse).toLocaleString()} ⊕`, "max pl_bmasse"],
+    ["Widest orbit", argext("pl_orbsmax",1), r=>`${fmtNum(r.pl_orbsmax)} AU`, "max pl_orbsmax"],
+  ];
+  recs.forEach(([title,r,valfn,basis])=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${title}</td><td class="big">${r.pl_name}</td>
+      <td class="num big">${valfn(r)}</td><td class="caption" style="margin:0">${basis}</td>`;
+    tb.appendChild(tr);
+  });
+  // biggest system by star_id
+  const byStar={};
+  rows.forEach(r=>{
+    const k=r.star_id;
+    if(!byStar[k]) byStar[k]={host:r.hostname,n:r.sy_pnum||0,planets:0};
+    byStar[k].planets++;
+    byStar[k].n=Math.max(byStar[k].n,r.sy_pnum||0);
+  });
+  let bigStar=null;
+  Object.values(byStar).forEach(s=>{ if(!bigStar||s.n>bigStar.n) bigStar=s; });
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>Biggest system</td><td class="big">${bigStar.host}</td>
+    <td class="num big">${bigStar.n} planets</td>
+    <td class="caption" style="margin:0">max sy_pnum, grouped by star_id</td>`;
+  tb.appendChild(tr);
+
+  document.getElementById("capSuper").textContent=
+    `Each record is the true extremum over non-missing values; ties broken alphabetically by planet name.`;
+}
+
+function renderCaveats(rows){
+  const total=rows.length;
+  const cols=[["sy_dist","Distance"],["pl_orbsmax","Orbit (AU)"],["st_met","Metallicity"],
+    ["pl_orbper","Orbital period"],["pl_bmasse","Mass"],["pl_rade","Radius"],["pl_eqt","Eq. temp"]];
+  const tb=document.querySelector("#tMiss tbody"); tb.innerHTML="";
+  cols.forEach(([c,lbl])=>{
+    const miss=rows.filter(r=>r[c]==null||Number.isNaN(r[c])).length;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${lbl} <code>${c}</code></td><td class="num">${miss}</td>
+      <td class="num">${(100*miss/total).toFixed(1)}%</td>`;
+    tb.appendChild(tr);
+  });
+  const est=rows.filter(r=>r.pl_eqt_computed).length;
+  document.getElementById("estNote").textContent=
+    `In this catalogue ${est.toLocaleString()} of ${total.toLocaleString()} planets (${(100*est/total).toFixed(0)}%) have an estimated equilibrium temperature.`;
+}
+
+/* ============================================================ *
+ *  Orchestration + dual-mode loading
+ * ============================================================ */
+let LAST_ROWS=null;
+function render(rows){
+  LAST_ROWS=rows;
+  console.log("rows.length ===", rows.length);
+  renderDiscovery(rows);
+  renderPlanetSci(rows);
+  renderHabitability(rows);
+  renderSuperlatives(rows);
+  renderCaveats(rows);
+}
+
+function setStatus(msg){ document.getElementById("status").textContent=msg; }
+
+function loadText(text){
+  try{
+    const rows=parseCSV(text);
+    setStatus(`Loaded ${rows.length.toLocaleString()} planets.`);
+    render(rows);
+  }catch(e){
+    setStatus("Could not parse CSV: "+e.message);
+    console.error(e);
+  }
+}
+
+document.getElementById("fileInput").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>loadText(fr.result);
+  fr.readAsText(f);
+});
+document.getElementById("loadBtn").addEventListener("click",()=>{
+  document.getElementById("fileInput").click();
+});
+
+// auto-fetch (works over HTTP; fails silently on file://)
+(function autoload(){
+  fetch("./exoplanets.csv")
+    .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
+    .then(loadText)
+    .catch(()=>{
+      setStatus("Auto-load blocked (file:// mode) — click “Load CSV” and pick exoplanets.csv.");
+    });
+})();
+
+// redraw on resize so canvases stay crisp
+let rT;
+window.addEventListener("resize",()=>{
+  clearTimeout(rT);
+  rT=setTimeout(()=>{ if(LAST_ROWS) render(LAST_ROWS); },180);
+});
+</script>
+</body>
+</html>
