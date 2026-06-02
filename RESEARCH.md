@@ -83,12 +83,12 @@ One row per planet. The columns the presentation actually depends on:
 ## 6. Visualization choice & layout
 
 - **Output:** a single scrollable HTML page, presentation-style.
-- **Tooling:** **HTML + vanilla JS**, no build system, no framework — same
-  spirit as `coffee_comparison.html` one folder up.
+- **Tooling:** **HTML + vanilla JS** (JS as the code-behind), no build system,
+  no framework.
 - **Charting:** **zero dependencies** — charts hand-drawn with `<canvas>`/SVG.
   No external libraries, so **no TSG/Cybersecurity approval required** (a CDN /
   open-source charting lib would need it under Moody's software policy).
-- **CSV loading:** same two-mode behavior as the coffee app —
+- **CSV loading:** two-mode behavior —
   `fetch('./exoplanets.csv')` works when **served over HTTP**
   (`python -m http.server`); opening via **`file://`** (double-click) needs a
   manual **"Load CSV"** button. This is documented on the page.
